@@ -770,7 +770,8 @@ impl ShouldKeepPosition {
 
 impl super::Command for Exchange {
     fn is_client_required(&self) -> bool {
-        true
+        // SimulateIncrease uses an ephemeral client (no wallet file needed)
+        !matches!(self.command, Command::SimulateIncrease { .. })
     }
 
     async fn execute(&self, ctx: super::Context<'_>) -> eyre::Result<()> {
