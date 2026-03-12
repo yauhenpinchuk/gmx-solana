@@ -774,10 +774,45 @@ impl super::Command for Exchange {
     }
 
     async fn execute(&self, ctx: super::Context<'_>) -> eyre::Result<()> {
+        // SimulateIncrease is read-only — handle it before wallet loading.
+        if let Command::SimulateIncrease {
+            market_token,
+            side,
+            collateral_side,
+            initial_collateral_token_amount,
+            size,
+        } = &self.command
+        {
+            let store = ctx.store();
+            let client = super::CommandClient::new_ephemeral(ctx.config())?;
+            let token_map = client.authorized_token_map(store).await?;
+            let market_address = client.find_market_address(store, market_token);
+            let market = client.market(&market_address).await?;
+            let is_long = side.is_long();
+            let is_collateral_long = collateral_side.is_long();
+            let collateral_amount =
+                token_amount(initial_collateral_token_amount, None, &token_map, &market, is_collateral_long)?;
+            let size_u128 = size.to_u128()?;
+            simulate::run(
+                &client,
+                store,
+                market_token,
+                &market,
+                &token_map,
+                is_long,
+                is_collateral_long,
+                collateral_amount,
+                size_u128,
+            )
+            .await?;
+            return Ok(());
+        }
+
         let nonce = self.nonce.map(|nonce| nonce.to_bytes());
         let store = ctx.store();
         let client = ctx.client()?;
         let mut token_map = match &self.command {
+            Command::SimulateIncrease { .. } => unreachable!("handled above"),
             Command::CloseOrder { .. }
             | Command::CloseDeposit { .. }
             | Command::CloseWithdrawal { .. }
@@ -897,39 +932,8 @@ impl super::Command for Exchange {
                 }
                 return Ok(());
             }
-            Command::SimulateIncrease {
-                market_token,
-                side,
-                collateral_side,
-                initial_collateral_token_amount,
-                size,
-            } => {
-                let token_map = token_map.as_ref().expect("must exist");
-                let market_address = client.find_market_address(store, market_token);
-                let market = client.market(&market_address).await?;
-                let is_long = side.is_long();
-                let is_collateral_long = collateral_side.is_long();
-                let collateral_amount = token_amount(
-                    initial_collateral_token_amount,
-                    None,
-                    token_map,
-                    &market,
-                    is_collateral_long,
-                )?;
-                let size_u128 = size.to_u128()?;
-                simulate::run(
-                    client,
-                    store,
-                    market_token,
-                    &market,
-                    token_map,
-                    is_long,
-                    is_collateral_long,
-                    collateral_amount,
-                    size_u128,
-                )
-                .await?;
-                return Ok(());
+            Command::SimulateIncrease { .. } => {
+                unreachable!("SimulateIncrease is handled before client setup")
             }
             Command::Actions {
                 address,

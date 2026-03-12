@@ -247,6 +247,28 @@ impl CommandClient {
         })
     }
 
+    /// Create a read-only client with a random ephemeral keypair.
+    /// Use this for commands that only fetch on-chain state and never sign transactions.
+    pub(crate) fn new_ephemeral(config: &Config) -> eyre::Result<Self> {
+        use gmsol_sdk::solana_utils::{
+            signer::local_signer, solana_sdk::signature::Keypair,
+        };
+        let payer = local_signer(Keypair::new());
+        let cluster = config.cluster();
+        let options = config.options();
+        let client = Client::new_with_options(cluster.clone(), payer, options.clone())?;
+        Ok(Self {
+            store: config.store_address(),
+            client,
+            ix_buffer_ctx: None,
+            serialize_only: None,
+            verbose: false,
+            priority_lamports: 0,
+            skip_preflight: false,
+            luts: Default::default(),
+        })
+    }
+
     pub(self) fn send_bundle_options(&self) -> SendBundleOptions {
         SendBundleOptions {
             compute_unit_min_priority_lamports: Some(self.priority_lamports),
