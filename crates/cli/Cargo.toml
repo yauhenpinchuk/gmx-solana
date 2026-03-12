@@ -42,8 +42,10 @@ gmsol-sdk = { workspace = true, features = [
     "timelock",
     "liquidity-provider",
 ] }
+gmsol-markets-info-cli = { path = "../markets-info-cli" }
 
 eyre = { workspace = true }
+anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 figment = { workspace = true, features = ["env", 'toml'] }
 tracing = { workspace = true }
@@ -79,6 +81,9 @@ tracing-subscriber = { workspace = true, optional = true, features = [
 ] }
 solana-remote-wallet = { workspace = true, optional = true }
 gql_client = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
 
 [build-dependencies]
 vergen-git2 = { workspace = true, features = ["build", "cargo", "rustc"] }

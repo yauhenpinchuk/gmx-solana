@@ -35,6 +35,7 @@ use init_config::InitConfig;
 use inspect::Inspect;
 use lp::Lp;
 use market::Market;
+use markets_info::MarketsInfo;
 use other::Other;
 #[cfg(feature = "remote-wallet")]
 use solana_remote_wallet::remote_wallet::RemoteWalletManager;
@@ -56,6 +57,7 @@ mod init_config;
 mod inspect;
 mod lp;
 mod market;
+mod markets_info;
 mod other;
 mod timelock;
 mod treasury;
@@ -101,6 +103,8 @@ pub enum Commands {
     Lp(Lp),
     /// Inspect protocol data.
     Inspect(Inspect),
+    /// Market info (funding, borrowing, OI) as standalone JSON output.
+    MarketsInfo(MarketsInfo),
     #[cfg(feature = "nightly-cli-market-graph")]
     Graph(graph::Graph),
     /// Miscellaneous useful commands.
