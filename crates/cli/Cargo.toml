@@ -67,6 +67,7 @@ prettytable = { workspace = true }
 indexmap = { workspace = true }
 bs58 = { workspace = true }
 hex = { workspace = true }
+reqwest = { workspace = true, features = ["json"] }
 futures-util = { workspace = true }
 rand = { workspace = true }
 bincode = { workspace = true }

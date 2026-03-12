@@ -2346,6 +2346,7 @@ dependencies = [
  "indexmap 2.10.0",
  "prettytable",
  "rand 0.7.3",
+ "reqwest 0.12.22",
  "rust_decimal",
  "serde",
  "serde_json",

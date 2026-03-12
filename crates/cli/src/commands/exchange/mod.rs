@@ -1,6 +1,8 @@
 #[cfg(feature = "execute")]
 pub(crate) mod executor;
 
+pub(crate) mod simulate;
+
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
@@ -260,6 +262,24 @@ enum Command {
         prepare_position_only: bool,
         #[command(flatten)]
         should_keep_position: ShouldKeepPosition,
+    },
+    /// Simulate a market increase order and print execution price + price impact as JSON.
+    /// Does not submit any transaction. Requires SOLANA_RPC_URL and network access to Pyth Hermes.
+    SimulateIncrease {
+        /// The address of the market token of the position's market.
+        market_token: Pubkey,
+        /// Whether the collateral is long token.
+        #[arg(long)]
+        collateral_side: Side,
+        /// Collateral amount (raw token units, e.g. lamports for SOL).
+        #[arg(long, short = 'a')]
+        initial_collateral_token_amount: Amount,
+        /// Position side.
+        #[arg(long)]
+        side: Side,
+        /// Position increment size in USD.
+        #[arg(long)]
+        size: Value,
     },
     /// Create a limit increase order.
     LimitIncrease {
@@ -875,6 +895,40 @@ impl super::Command for Exchange {
                         )?
                     );
                 }
+                return Ok(());
+            }
+            Command::SimulateIncrease {
+                market_token,
+                side,
+                collateral_side,
+                initial_collateral_token_amount,
+                size,
+            } => {
+                let token_map = token_map.as_ref().expect("must exist");
+                let market_address = client.find_market_address(store, market_token);
+                let market = client.market(&market_address).await?;
+                let is_long = side.is_long();
+                let is_collateral_long = collateral_side.is_long();
+                let collateral_amount = token_amount(
+                    initial_collateral_token_amount,
+                    None,
+                    token_map,
+                    &market,
+                    is_collateral_long,
+                )?;
+                let size_u128 = size.to_u128()?;
+                simulate::run(
+                    client,
+                    store,
+                    market_token,
+                    &market,
+                    token_map,
+                    is_long,
+                    is_collateral_long,
+                    collateral_amount,
+                    size_u128,
+                )
+                .await?;
                 return Ok(());
             }
             Command::Actions {
