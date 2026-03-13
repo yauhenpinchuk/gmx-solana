@@ -2329,6 +2329,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bs58 0.5.1",
+ "bytemuck",
  "cfg-if",
  "clap",
  "color-eyre",
@@ -2339,8 +2340,9 @@ dependencies = [
  "eyre",
  "figment",
  "futures-util",
- "gmsol-markets-info-cli",
+ "gmsol-model",
  "gmsol-sdk",
+ "gmsol-store",
  "gql_client",
  "hex",
  "humantime",
@@ -2413,17 +2415,6 @@ dependencies = [
  "gmsol-model",
  "gmsol-programs",
  "gmsol-utils",
-]
-
-[[package]]
-name = "gmsol-markets-info-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "gmsol-model",
- "gmsol-store",
- "serde",
 ]
 
 [[package]]

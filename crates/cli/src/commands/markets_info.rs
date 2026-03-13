@@ -3,7 +3,7 @@ use std::str::FromStr;
 use anyhow::Context as _;
 use gmsol_sdk::solana_utils::{solana_client::rpc_client::RpcClient, solana_sdk::pubkey::Pubkey};
 
-use gmsol_markets_info_cli::{parse_market, CHUNK_SIZE};
+use crate::markets_info_parser::{parse_market, CHUNK_SIZE};
 
 /// Market info (funding, borrowing, OI) as JSON.
 ///

@@ -42,7 +42,9 @@ gmsol-sdk = { workspace = true, features = [
     "timelock",
     "liquidity-provider",
 ] }
-gmsol-markets-info-cli = { path = "../markets-info-cli" }
+gmsol-model = { workspace = true }
+gmsol-store = { path = "../../programs/store" }
+bytemuck = { workspace = true }
 
 eyre = { workspace = true }
 anyhow = { workspace = true }

@@ -265,16 +265,27 @@ pub(crate) async fn run(
     // ------------------------------------------------------------------
     // 6. Scale and output JSON.
     // ------------------------------------------------------------------
-    // `execution_price_u128` is in "unit_price" format = price_usd * 10^(30-token_decimals).
-    // Multiply by 10^token_decimals to get the 30-decimal fixed-point value
-    // that Python divides by 10^30 to obtain the human-readable USD price.
+    // Contract for Python (`order_simulator.py`): every *price* field is an integer
+    // such that `field / 10^30` = human USD (per 1 full index token).
+    //
+    // Index: oracle unit price is per smallest index unit; scale up to per 1 full token.
     let dec_factor = 10u128.pow(index_token_decimals as u32);
     let index_price_json = (index_price.min as u128)
         .checked_mul(dec_factor)
         .ok_or_else(|| eyre!("index_price overflow when scaling"))?;
-    let execution_price_json = execution_price_u128
-        .checked_mul(dec_factor)
-        .ok_or_else(|| eyre!("execution_price overflow when scaling"))?;
+
+    // Execution USD per full index token must use (size_usd * 10^dec) / tokens, not
+    // (size_usd / tokens) * dec: the model stores execution_price = size_delta_usd /
+    // size_delta_in_tokens in one step; u128 division there can truncate to a tiny value
+    // when tokens are large, which broke downstream acceptable-price in the dashboard.
+    let execution_price_json = if size_delta_tokens_u128 > 0 {
+        size_u128
+            .checked_mul(dec_factor)
+            .and_then(|n| n.checked_div(size_delta_tokens_u128))
+            .ok_or_else(|| eyre!("execution_price_json overflow or divide by zero"))?
+    } else {
+        index_price_json
+    };
 
     // price_impact_value is already in 30-decimal USD; output as-is.
     let price_impact_usd_json = price_impact_value_i128;
