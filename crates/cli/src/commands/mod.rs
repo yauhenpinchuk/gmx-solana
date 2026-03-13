@@ -35,6 +35,7 @@ use init_config::InitConfig;
 use inspect::Inspect;
 use lp::Lp;
 use market::Market;
+use markets_info::MarketsInfo;
 use other::Other;
 #[cfg(feature = "remote-wallet")]
 use solana_remote_wallet::remote_wallet::RemoteWalletManager;
@@ -56,6 +57,7 @@ mod init_config;
 mod inspect;
 mod lp;
 mod market;
+mod markets_info;
 mod other;
 mod timelock;
 mod treasury;
@@ -101,6 +103,8 @@ pub enum Commands {
     Lp(Lp),
     /// Inspect protocol data.
     Inspect(Inspect),
+    /// Market info (funding, borrowing, OI) as standalone JSON output.
+    MarketsInfo(MarketsInfo),
     #[cfg(feature = "nightly-cli-market-graph")]
     Graph(graph::Graph),
     /// Miscellaneous useful commands.
@@ -244,6 +248,28 @@ impl CommandClient {
             priority_lamports: config.priority_lamports()?,
             skip_preflight: config.skip_preflight(),
             luts: config.alts().copied().collect(),
+        })
+    }
+
+    /// Create a read-only client with a random ephemeral keypair.
+    /// Use this for commands that only fetch on-chain state and never sign transactions.
+    pub(crate) fn new_ephemeral(config: &Config) -> eyre::Result<Self> {
+        use gmsol_sdk::solana_utils::{
+            signer::local_signer, solana_sdk::signature::Keypair,
+        };
+        let payer = local_signer(Keypair::new());
+        let cluster = config.cluster();
+        let options = config.options();
+        let client = Client::new_with_options(cluster.clone(), payer, options.clone())?;
+        Ok(Self {
+            store: config.store_address(),
+            client,
+            ix_buffer_ctx: None,
+            serialize_only: None,
+            verbose: false,
+            priority_lamports: 0,
+            skip_preflight: false,
+            luts: Default::default(),
         })
     }
 

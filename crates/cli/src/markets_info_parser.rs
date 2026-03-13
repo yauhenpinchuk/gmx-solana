@@ -1,4 +1,5 @@
-//! Library for parsing GMX-Solana Market account data into status (funding, borrowing, OI).
+//! Local copy of the former `gmsol-markets-info-cli` parsing logic.
+//! Keeps `gmsol` CLI self-contained so we can drop the separate crate.
 
 use std::mem;
 
@@ -81,9 +82,8 @@ mod tests {
 
     #[test]
     fn parse_market_rejects_data_smaller_than_market() {
-        let buf = vec![0u8; 8 + 100]; // way smaller than size_of::<Market>()
+        let buf = vec![0u8; 8 + 100];
         let err = parse_market(&buf, None).unwrap_err();
-        // Should fail either on size check or on from_market/open_interest
         let s = err.to_string();
         assert!(
             s.contains("too small") || s.contains("from_market") || s.contains("open_interest"),
@@ -97,3 +97,4 @@ mod tests {
         assert!(CHUNK_SIZE <= 100, "getMultipleAccounts typically allows up to 100 keys");
     }
 }
+

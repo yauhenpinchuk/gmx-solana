@@ -1,20 +1,37 @@
-//! Read GMX-Solana Market account(s) and output funding/borrowing factors + OI (JSON).
-//! One PDA or comma-separated list: --market-pdas <PDA> or --market-pdas <PDA1,PDA2,...>.
-
 use std::str::FromStr;
 
-use anyhow::Context;
-use clap::Parser;
-use solana_client::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
+use anyhow::Context as _;
+use gmsol_sdk::solana_utils::{solana_client::rpc_client::RpcClient, solana_sdk::pubkey::Pubkey};
 
-use gmsol_markets_info_cli::{parse_market, CHUNK_SIZE};
+use crate::markets_info_parser::{parse_market, CHUNK_SIZE};
 
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+/// Market info (funding, borrowing, OI) as JSON.
+///
+/// Replaces the former standalone `gmsol-markets-info-cli` binary.
+/// Output format is identical: single PDA produces a JSON object,
+/// multiple comma-separated PDAs produce a JSON array.
+#[derive(Debug, clap::Args)]
+pub struct MarketsInfo {
+    /// Solana RPC URL.
+    #[arg(long)]
+    rpc_url: String,
+    /// One market PDA or comma-separated list (one -> single object, many -> JSON array).
+    #[arg(long)]
+    market_pdas: String,
+}
 
-    let pdas: Vec<String> = args
-        .market_pdas
+impl super::Command for MarketsInfo {
+    fn is_client_required(&self) -> bool {
+        false
+    }
+
+    async fn execute(&self, _ctx: super::Context<'_>) -> eyre::Result<()> {
+        run(&self.rpc_url, &self.market_pdas).map_err(|e| eyre::eyre!(e))
+    }
+}
+
+fn run(rpc_url: &str, market_pdas: &str) -> anyhow::Result<()> {
+    let pdas: Vec<String> = market_pdas
         .split(',')
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
@@ -24,7 +41,7 @@ fn main() -> anyhow::Result<()> {
         anyhow::bail!("--market-pdas must not be empty (one PDA or comma-separated list)");
     }
 
-    let client = RpcClient::new(args.rpc_url);
+    let client = RpcClient::new(rpc_url);
 
     if pdas.len() == 1 {
         let pda = &pdas[0];
@@ -60,14 +77,4 @@ fn main() -> anyhow::Result<()> {
     }
     println!("{}", serde_json::to_string(&results)?);
     Ok(())
-}
-
-#[derive(Parser)]
-#[command(version, about = "GMX-Solana market info (funding, borrowing, OI)")]
-struct Args {
-    #[arg(long)]
-    rpc_url: String,
-    /// One market PDA or comma-separated list (one → single object, many → JSON array)
-    #[arg(long)]
-    market_pdas: String,
 }

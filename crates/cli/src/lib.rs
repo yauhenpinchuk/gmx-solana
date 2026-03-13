@@ -6,6 +6,8 @@ pub mod wallet;
 
 /// Commands.
 pub mod commands;
+/// Market info parsing helpers (inlined from the old `gmsol-markets-info-cli` crate).
+mod markets_info_parser;
 
 use std::{ops::Deref, path::PathBuf};
 

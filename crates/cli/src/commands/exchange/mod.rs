@@ -1,6 +1,8 @@
 #[cfg(feature = "execute")]
 pub(crate) mod executor;
 
+pub(crate) mod simulate;
+
 use std::{
     collections::{HashMap, HashSet},
     ops::Deref,
@@ -260,6 +262,24 @@ enum Command {
         prepare_position_only: bool,
         #[command(flatten)]
         should_keep_position: ShouldKeepPosition,
+    },
+    /// Simulate a market increase order and print execution price + price impact as JSON.
+    /// Does not submit any transaction. Requires SOLANA_RPC_URL and network access to Pyth Hermes.
+    SimulateIncrease {
+        /// The address of the market token of the position's market.
+        market_token: Pubkey,
+        /// Whether the collateral is long token.
+        #[arg(long)]
+        collateral_side: Side,
+        /// Collateral amount (raw token units, e.g. lamports for SOL).
+        #[arg(long, short = 'a')]
+        initial_collateral_token_amount: Amount,
+        /// Position side.
+        #[arg(long)]
+        side: Side,
+        /// Position increment size in USD.
+        #[arg(long)]
+        size: Value,
     },
     /// Create a limit increase order.
     LimitIncrease {
@@ -750,14 +770,50 @@ impl ShouldKeepPosition {
 
 impl super::Command for Exchange {
     fn is_client_required(&self) -> bool {
-        true
+        // SimulateIncrease uses an ephemeral client (no wallet file needed)
+        !matches!(self.command, Command::SimulateIncrease { .. })
     }
 
     async fn execute(&self, ctx: super::Context<'_>) -> eyre::Result<()> {
+        // SimulateIncrease is read-only — handle it before wallet loading.
+        if let Command::SimulateIncrease {
+            market_token,
+            side,
+            collateral_side,
+            initial_collateral_token_amount,
+            size,
+        } = &self.command
+        {
+            let store = ctx.store();
+            let client = super::CommandClient::new_ephemeral(ctx.config())?;
+            let token_map = client.authorized_token_map(store).await?;
+            let market_address = client.find_market_address(store, market_token);
+            let market = client.market(&market_address).await?;
+            let is_long = side.is_long();
+            let is_collateral_long = collateral_side.is_long();
+            let collateral_amount =
+                token_amount(initial_collateral_token_amount, None, &token_map, &market, is_collateral_long)?;
+            let size_u128 = size.to_u128()?;
+            simulate::run(
+                &client,
+                store,
+                market_token,
+                &market,
+                &token_map,
+                is_long,
+                is_collateral_long,
+                collateral_amount,
+                size_u128,
+            )
+            .await?;
+            return Ok(());
+        }
+
         let nonce = self.nonce.map(|nonce| nonce.to_bytes());
         let store = ctx.store();
         let client = ctx.client()?;
         let mut token_map = match &self.command {
+            Command::SimulateIncrease { .. } => unreachable!("handled above"),
             Command::CloseOrder { .. }
             | Command::CloseDeposit { .. }
             | Command::CloseWithdrawal { .. }
@@ -876,6 +932,9 @@ impl super::Command for Exchange {
                     );
                 }
                 return Ok(());
+            }
+            Command::SimulateIncrease { .. } => {
+                unreachable!("SimulateIncrease is handled before client setup")
             }
             Command::Actions {
                 address,
