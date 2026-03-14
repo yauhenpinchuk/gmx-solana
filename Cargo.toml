@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["crates/*", "programs/*", "examples", "tests"]
+exclude = ["crates/markets-info-cli"]
 
 [workspace.package]
 version = "0.10.0"
